@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Aviation Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f2f5;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <!-- Vue.js CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Axios pour les requêtes API -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <!-- Vue Router -->
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+
+    <script>
+        const { createApp, ref, reactive, onMounted } = Vue;
+        const { createRouter, createWebHistory } = VueRouter;
+
+        // Composant Login
+        const Login = {
+            template: `
+                <div class="login-container">
+                    <div class="login-card">
+                        <h2>Aviation Portal</h2>
+                        <div v-if="error" class="error">{{ error }}</div>
+                        <form @submit.prevent="handleLogin">
+                            <input type="text" v-model="login" placeholder="Nom d'utilisateur" required>
+                            <input type="password" v-model="password" placeholder="Mot de passe" required>
+                            <button type="submit">Se connecter</button>
+                        </form>
+                        <p class="link">Pas de compte ? <a href="#" @click="$router.push('/register')">S'inscrire</a></p>
+                    </div>
+                </div>
+            `,
+            setup() {
+                const login = ref('');
+                const password = ref('');
+                const error = ref('');
+                
+                const handleLogin = async () => {
+                    try {
+                        const response = await axios.post('api/login.php', {
+                            login: login.value,
+                            password: password.value
+                        });
+                        if (response.data.success) {
+                            window.location.href = response.data.redirect;
+                        } else {
+                            error.value = response.data.message;
+                        }
+                    } catch (err) {
+                        error.value = 'Erreur de connexion';
+                    }
+                };
+                
+                return { login, password, error, handleLogin };
+            }
+        };
+
+        // Composant StaffForms
+        const StaffForms = {
+            template: `
+                <div class="dashboard">
+                    <div class="sidebar">
+                        <h2>Mon espace</h2>
+                        <a href="#" @click="$router.push('/my-forms')" class="active">Mes formulaires</a>
+                        <a href="#" @click="logout">Déconnexion</a>
+                    </div>
+                    <div class="content">
+                        <div class="header">
+                            <h1>Mes formulaires</h1>
+                            <span>Bonjour, {{ username }}</span>
+                        </div>
+                        <div class="cards-grid" v-if="forms.length">
+                            <div v-for="form in forms" :key="form.id" class="form-card">
+                                <h3>{{ form.title }}</h3>
+                                <p>{{ form.description }}</p>
+                                <div class="badge">{{ form.nb_questions }} questions</div>
+                                <a :href="'submit_form.php?id=' + form.id" class="btn">Remplir</a>
+                            </div>
+                        </div>
+                        <div v-else class="empty">Aucun formulaire disponible</div>
+                    </div>
+                </div>
+            `,
+            setup() {
+                const forms = ref([]);
+                const username = ref('');
+                
+                onMounted(async () => {
+                    try {
+                        const response = await axios.get('api/staff/forms.php');
+                        if (response.data.success) {
+                            forms.value = response.data.forms;
+                            username.value = response.data.username;
+                        } else {
+                            window.location.href = '/login';
+                        }
+                    } catch (err) {
+                        window.location.href = '/login';
+                    }
+                });
+                
+                const logout = async () => {
+                    await axios.post('api/logout.php');
+                    window.location.href = '/';
+                };
+                
+                return { forms, username, logout };
+            }
+        };
+
+        // Router
+        const router = createRouter({
+            history: createWebHistory(),
+            routes: [
+                { path: '/', component: Login },
+                { path: '/login', component: Login },
+                { path: '/my-forms', component: StaffForms },
+                { path: '/register', component: Login } // À compléter
+            ]
+        });
+
+        // App
+        const app = createApp({});
+        app.use(router);
+        app.mount('#app');
+    </script>
+
+    <style>
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a4d6b;
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            width: 400px;
+        }
+        .login-card h2 { text-align: center; color: #1a4d6b; margin-bottom: 30px; }
+        .login-card input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #c0d4e8;
+            border-radius: 8px;
+        }
+        .login-card button {
+            width: 100%;
+            padding: 12px;
+            background: #1a4d6b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .error { color: #c0392b; text-align: center; margin: 10px 0; }
+        .link { text-align: center; margin-top: 20px; }
+        
+        /* Dashboard styles */
+        .dashboard {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 280px;
+            background: #0a1928;
+            padding: 25px;
+        }
+        .sidebar h2 { color: white; margin-bottom: 30px; }
+        .sidebar a {
+            display: block;
+            color: #a0c0d8;
+            padding: 12px 15px;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        .sidebar a:hover, .sidebar a.active { background: #1a4d6b; color: white; }
+        .content {
+            flex: 1;
+            padding: 30px;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .form-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .form-card h3 { color: #1a4d6b; margin-bottom: 10px; }
+        .btn {
+            display: inline-block;
+            padding: 8px 20px;
+            background: #1a4d6b;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .badge {
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-block;
+        }
+        .empty { text-align: center; padding: 40px; color: #5a7a9a; }
+    </style>
+</body>
+</html>
